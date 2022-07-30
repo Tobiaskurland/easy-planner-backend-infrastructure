@@ -1,0 +1,22 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Users Lambda",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/Lambda/easy_planner_users/local_main.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Plan Lambda",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/Lambda/easy_planner_plans/local_main.py",
+      "console": "integratedTerminal"
+    }
+  ]
+}
