@@ -16,6 +16,7 @@ import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import * as path from "path";
 import { UserPool } from "aws-cdk-lib/aws-cognito";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { RetentionDays } from "aws-cdk-lib/aws-logs";
 
 export class EasyPlannerBackendInfrastructureStack extends Stack {
   constructor(scope: Construct, id: string, env: string, props?: StackProps) {
@@ -67,6 +68,22 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       timeout: Duration.minutes(5),
     });
 
+    const activityLambda = new Function(this, `activityLambda${env}`, {
+      functionName: `easy_planner_activities_${env}`,
+      runtime: Runtime.PYTHON_3_9,
+      code: Code.fromAsset(
+        path.join(__dirname, "../../Lambda/easy_planner_activities"),
+        { exclude: ["local_main.py", "events"] }
+      ),
+      handler: "lambda_function.lambda_handler",
+      timeout: Duration.minutes(5),
+      memorySize: 256,
+      logRetention: RetentionDays.ONE_MONTH,
+      environment: {
+        table: dynamodbTable.tableName
+      }
+    })
+
     // IAM
 
     const dynamodbPolicy = new PolicyStatement({
@@ -76,6 +93,7 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
 
     userLambda.addToRolePolicy(dynamodbPolicy);
     planLambda.addToRolePolicy(dynamodbPolicy);
+    activityLambda.addToRolePolicy(dynamodbPolicy);
 
     // API GATEWAY
 
@@ -96,7 +114,7 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       },
     });
 
-    const model = new Model(this, `easy_planner_api_plan_model${env}`, {
+    const planModel = new Model(this, `easy_planner_api_plan_model${env}`, {
       restApi: api,
       contentType: "application/json",
       modelName: "PlanModel",
@@ -115,24 +133,50 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       },
     });
 
+    const activityModel = new Model(this, `easy_planner_api_activity_model_${env}`, {
+      restApi: api,
+      contentType: "application/json",
+      modelName: "ActivityModel",
+      schema: {
+        schema: JsonSchemaVersion.DRAFT4,
+        title: "createActivityModel",
+        type: JsonSchemaType.OBJECT,
+        required: ["Date", "Description", "StartTime", "EndTime", "Name", "Theme"],
+        properties:
+        {
+          Date: { type: JsonSchemaType.STRING},
+          Description: { type: JsonSchemaType.STRING },
+          StartTime: {type: JsonSchemaType.STRING},
+          EndTime: {type: JsonSchemaType.STRING},
+          Name: {type: JsonSchemaType.STRING},
+          Theme: { type: JsonSchemaType.STRING },
+        }
+      }
+    })
+
     const requestValidator = new RequestValidator(
       this,
       `easy_planner_api_request_validator${env}`,
       {
         restApi: api,
-        requestValidatorName: "PlanRequestValidator",
+        requestValidatorName: "requestValidator",
         validateRequestBody: true,
       }
     );
 
     const userLambdaIntegration = new LambdaIntegration(userLambda);
     const planLambdaIntegration = new LambdaIntegration(planLambda);
+    const activityLambdaIntegration = new LambdaIntegration(activityLambda);
 
     const users = api.root.addResource("user");
     users.addMethod("POST", userLambdaIntegration, {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO,
     });
+    users.addMethod("GET", userLambdaIntegration, {
+      authorizer: auth,
+      authorizationType: AuthorizationType.COGNITO
+    })
 
     const user = users.addResource("{user_id}");
     user.addMethod("GET", userLambdaIntegration, {
@@ -153,7 +197,7 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO,
       requestValidator: requestValidator,
-      requestModels: { "application/json": model },
+      requestModels: { "application/json": planModel },
     });
 
     const plan = plans.addResource("{plan_id}");
@@ -168,6 +212,32 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
     plan.addMethod("PUT", planLambdaIntegration, {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO,
+    });
+
+    const activities = api.root.addResource("activities");
+    activities.addMethod("GET", activityLambdaIntegration, {
+      authorizer: auth,
+      authorizationType: AuthorizationType.COGNITO
+    });
+    activities.addMethod("POST", activityLambdaIntegration, {
+      authorizer: auth,
+      authorizationType: AuthorizationType.COGNITO,
+      requestValidator: requestValidator,
+      requestModels: {"application/json": activityModel}
+    });
+
+    const activity = activities.addResource("{activity_id}");
+    activity.addMethod("GET", activityLambdaIntegration, {
+      authorizer: auth,
+      authorizationType: AuthorizationType.COGNITO
+    });
+    activity.addMethod("DELETE", activityLambdaIntegration, {
+      authorizer: auth,
+      authorizationType: AuthorizationType.COGNITO
+    });
+    activity.addMethod("PUT", activityLambdaIntegration, {
+      authorizer: auth,
+      authorizationType: AuthorizationType.COGNITO
     });
   }
 }

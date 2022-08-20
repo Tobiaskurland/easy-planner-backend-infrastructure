@@ -1,16 +1,15 @@
 import logging
+import boto3
 
-class UserService():
 
-    def __init__(self, table):
+class User:
+    def __init__(self, Name, Family_name, Email, Phone_number):
+        self.Name = Name
+        self.Family_name = Family_name
+        self.Email = Email
+        self.Phone_number = Phone_number
+
+
+class UserService:
+    def __init__(self, table, event):
         self.table = table
-
-    def getUsers(self, user_id):
-        
-        try:
-            response = self.table.get_item(Key={"PK": f"Person#{user_id}", "SK": "INFO"})
-        except Exception as e:
-            logging.error(f'Failed to get users - {e}')
-        
-        if 'Item' in response:
-            return response['Item']

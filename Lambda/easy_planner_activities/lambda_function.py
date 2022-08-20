@@ -2,7 +2,7 @@ import boto3
 import logging
 import json
 import decimal
-from user_service import UserService, User
+from activity_service import ActivityService
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("botocore").setLevel(logging.CRITICAL)
@@ -15,21 +15,24 @@ def lambda_handler(event, context):
 
         resource = event["resource"]
         method = event["httpMethod"]
+        user_id = event["requestContext"]["authorizer"]["claims"]["cognito:username"]
 
-        if resource == "/user":
+        acs = ActivityService(user_id)
+
+        if resource == "activities":
             if method == "GET":
-                event_user = event["requestContext"]["authorizer"]["claims"]
-                user = User(
-                    event_user["name"],
-                    event_user["family_name"],
-                    event_user["email"],
-                    event_user["phone_number"],
-                )
+                response, status = acs.get_user_activities()
+            if method == "POST":
+                response, status = acs.add_activity()
+        if resource == "activities/{activity_id}":
+            activity_id = event["pathParameters"]["activity_id"]
 
-                response = user.__dict__
-                status = 200
-        if resource == "/user/{user_id}":
-            pass
+            if method == "GET":
+                response, status = acs.get_user_activity_by_id(activity_id)
+            if method == "DELETE":
+                response, status = acs.delete_activity(activity_id)
+            if method == "PUT":
+                response, status = acs.update_activity(activity_id)
 
         return {
             "body": json.dumps(response, default=decimal_default),
@@ -42,7 +45,8 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        logging.error(f"Unkown error occoured - {e}")
+        logging.error(f"[ERROR] - Unkown error - {e}")
+        raise Exception
 
 
 def decimal_default(obj):

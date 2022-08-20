@@ -17,6 +17,13 @@
       "request": "launch",
       "program": "${workspaceFolder}/Lambda/easy_planner_plans/local_main.py",
       "console": "integratedTerminal"
+    },
+    {
+      "name": "Activity Lambda",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/Lambda/easy_planner_activities/local_main.py",
+      "console": "integratedTerminal"
     }
   ]
 }
