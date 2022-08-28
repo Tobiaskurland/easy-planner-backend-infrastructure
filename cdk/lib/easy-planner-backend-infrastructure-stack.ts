@@ -213,19 +213,19 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO,
     });
-
-    const activities = api.root.addResource("activities");
-    activities.addMethod("GET", activityLambdaIntegration, {
+    const plan_activities = plan.addResource("activities")
+    plan_activities.addMethod("GET", activityLambdaIntegration, {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO
     });
-    activities.addMethod("POST", activityLambdaIntegration, {
+    plan_activities.addMethod("POST", activityLambdaIntegration, {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO,
       requestValidator: requestValidator,
       requestModels: {"application/json": activityModel}
     });
 
+    const activities = api.root.addResource("activities");
     const activity = activities.addResource("{activity_id}");
     activity.addMethod("GET", activityLambdaIntegration, {
       authorizer: auth,
