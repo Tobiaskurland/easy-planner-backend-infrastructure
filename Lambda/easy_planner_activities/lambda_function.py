@@ -19,12 +19,14 @@ def lambda_handler(event, context):
 
         acs = ActivityService(user_id)
 
-        if resource == "activities":
+        if resource == "/plans/{plan_id}/activities":
+            plan_id = event["pathParameters"]["plan_id"]
+
             if method == "GET":
-                response, status = acs.get_user_activities()
+                response, status = acs.get_user_activities_by_plan(plan_id)
             if method == "POST":
-                response, status = acs.add_activity()
-        if resource == "activities/{activity_id}":
+                response, status = acs.add_activity(plan_id)
+        if resource == "/activities/{activity_id}":
             activity_id = event["pathParameters"]["activity_id"]
 
             if method == "GET":
@@ -43,7 +45,8 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent",
             },
         }
-
+    except TypeError as te:
+        logging.error(f"[ERROR] - Unkown type error - {te}")
     except Exception as e:
         logging.error(f"[ERROR] - Unkown error - {e}")
         raise Exception
