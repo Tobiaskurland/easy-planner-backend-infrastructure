@@ -2,11 +2,13 @@ import boto3
 import logging
 import json
 import decimal
-from user_service import UserService, User
+import traceback
+from user_service import UserService
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("botocore").setLevel(logging.CRITICAL)
 logging.getLogger("boto3").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 
 def lambda_handler(event, context):
@@ -16,20 +18,32 @@ def lambda_handler(event, context):
         resource = event["resource"]
         method = event["httpMethod"]
 
-        if resource == "/user":
-            if method == "GET":
-                event_user = event["requestContext"]["authorizer"]["claims"]
-                user = User(
-                    event_user["name"],
-                    event_user["family_name"],
-                    event_user["email"],
-                    event_user["phone_number"],
-                )
+        if "authorizer" in event["requestContext"]:
+            user_id = event["requestContext"]["authorizer"]["claims"][
+                "cognito:username"
+            ]
 
-                response = user.__dict__
-                status = 200
-        if resource == "/user/{user_id}":
-            pass
+        us = UserService(event)
+
+        if resource == "/user":
+
+            if method == "POST":
+                response, status = us.addUser()
+
+            if method == "GET":
+                response, status = us.getUserById(user_id)
+
+            if method == "DELETE":
+                pass
+            if method == "UPDATE":
+                pass
+
+        if resource == "/user/confirm":
+
+            if method == "POST":
+                response, status = us.confirm_sign_up()
+            if method == "GET":
+                pass
 
         return {
             "body": json.dumps(response, default=decimal_default),
@@ -43,6 +57,7 @@ def lambda_handler(event, context):
 
     except Exception as e:
         logging.error(f"Unkown error occoured - {e}")
+        logging.error(traceback.print_exc())
 
 
 def decimal_default(obj):

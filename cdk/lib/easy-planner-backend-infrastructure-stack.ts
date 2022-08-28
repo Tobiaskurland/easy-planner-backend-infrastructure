@@ -17,6 +17,7 @@ import * as path from "path";
 import { UserPool } from "aws-cdk-lib/aws-cognito";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { RetentionDays } from "aws-cdk-lib/aws-logs";
+import { Bucket, BucketEncryption } from "aws-cdk-lib/aws-s3";
 
 export class EasyPlannerBackendInfrastructureStack extends Stack {
   constructor(scope: Construct, id: string, env: string, props?: StackProps) {
@@ -55,6 +56,10 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       ),
       handler: "lambda_function.lambda_handler",
       timeout: Duration.minutes(5),
+      environment: {
+        table: dynamodbTable.tableName,
+        cognito_client_id: "7ulsc8nhv6e42h6hvd4agjumig"
+      }
     });
 
     const planLambda = new Function(this, `planLambda${env}`, {
@@ -66,6 +71,9 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       ),
       handler: "lambda_function.lambda_handler",
       timeout: Duration.minutes(5),
+      environment: {
+        table: dynamodbTable.tableName
+      }
     });
 
     const activityLambda = new Function(this, `activityLambda${env}`, {
@@ -82,6 +90,14 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       environment: {
         table: dynamodbTable.tableName
       }
+    })
+
+    // S3
+
+    const easyPlannerS3 = new Bucket(this, `easy_planner_s3_${env}`, {
+      bucketName: `easy-planner-${env.toLowerCase()}`,
+      encryption: BucketEncryption.S3_MANAGED,
+      publicReadAccess: false
     })
 
     // IAM
@@ -133,6 +149,25 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       },
     });
 
+    const userModel = new Model(this, `easy_planner_api_user_model_${env}`, {
+      restApi: api,
+      contentType: "application/json",
+      modelName: "UserModel",
+      schema: {
+        schema: JsonSchemaVersion.DRAFT4,
+        title: "CreateUserModel",
+        type: JsonSchemaType.OBJECT,
+        required: ["FirstName", "FamilyName", "Email", "DateOfBirth", "Password"],
+        properties: {
+          FirstName: { type: JsonSchemaType.STRING },
+          FamilyName: { type: JsonSchemaType.STRING },
+          Email: { type: JsonSchemaType.STRING },
+          DateOfBirth: { type: JsonSchemaType.STRING },
+          Password: { type: JsonSchemaType.STRING },
+        },
+      },
+    });
+
     const activityModel = new Model(this, `easy_planner_api_activity_model_${env}`, {
       restApi: api,
       contentType: "application/json",
@@ -168,25 +203,27 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
     const planLambdaIntegration = new LambdaIntegration(planLambda);
     const activityLambdaIntegration = new LambdaIntegration(activityLambda);
 
-    const users = api.root.addResource("user");
-    users.addMethod("POST", userLambdaIntegration, {
-      authorizer: auth,
-      authorizationType: AuthorizationType.COGNITO,
-    });
-    users.addMethod("GET", userLambdaIntegration, {
-      authorizer: auth,
-      authorizationType: AuthorizationType.COGNITO
-    })
-
-    const user = users.addResource("{user_id}");
+    const user = api.root.addResource("user");
     user.addMethod("GET", userLambdaIntegration, {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO,
+    });
+    user.addMethod("POST", userLambdaIntegration, {
+      requestValidator: requestValidator,
+      requestModels: {"application/json": userModel}
     });
     user.addMethod("DELETE", userLambdaIntegration, {
       authorizer: auth,
       authorizationType: AuthorizationType.COGNITO,
     });
+    user.addMethod("PUT", userLambdaIntegration, {
+      authorizer: auth,
+      authorizationType: AuthorizationType.COGNITO
+    });
+
+    const confirm_user = user.addResource("confirm");
+    confirm_user.addMethod("POST", userLambdaIntegration);
+    confirm_user.addMethod("GET", userLambdaIntegration);
 
     const plans = api.root.addResource("plans");
     plans.addMethod("GET", planLambdaIntegration, {
