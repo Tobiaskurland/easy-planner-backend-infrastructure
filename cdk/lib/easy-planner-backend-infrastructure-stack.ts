@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from "aws-cdk-lib";
+import { Duration, Stack, StackProps, Tags } from "aws-cdk-lib";
 import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
 import {
   AuthorizationType,
@@ -19,6 +19,19 @@ import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Bucket, BucketEncryption } from "aws-cdk-lib/aws-s3";
 
+function tagResource(
+  scope: Construct,
+  resource: String,
+  stackEnvironment: string
+) {
+  Tags.of(scope).add("Environment", stackEnvironment);
+  Tags.of(scope).add("Name", namedResource(resource));
+}
+
+function namedResource(resource: String): string {
+  return "Easy Planner - " + resource;
+}
+
 export class EasyPlannerBackendInfrastructureStack extends Stack {
   constructor(scope: Construct, id: string, env: string, props?: StackProps) {
     super(scope, id, props);
@@ -36,6 +49,8 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       partitionKey: { name: "GSI1_PK", type: AttributeType.STRING },
       sortKey: { name: "GSI1_SK", type: AttributeType.STRING },
     });
+
+    tagResource(dynamodbTable, "Dynamo table", env);
 
     // COGNITO
 
@@ -62,6 +77,8 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       }
     });
 
+    tagResource(userLambda, "User Lambda", env);
+
     const planLambda = new Function(this, `planLambda${env}`, {
       functionName: `easy_planner_plans_${env}`,
       runtime: Runtime.PYTHON_3_9,
@@ -75,6 +92,8 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
         table: dynamodbTable.tableName
       }
     });
+
+    tagResource(planLambda, "Plan Lambda", env);
 
     const activityLambda = new Function(this, `activityLambda${env}`, {
       functionName: `easy_planner_activities_${env}`,
@@ -92,6 +111,8 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       }
     })
 
+    tagResource(activityLambda, "Activity Lambda", env);
+
     // S3
 
     const easyPlannerS3 = new Bucket(this, `easy_planner_s3_${env}`, {
@@ -99,6 +120,8 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
       encryption: BucketEncryption.S3_MANAGED,
       publicReadAccess: false
     })
+
+    tagResource(easyPlannerS3, "S3 Bucket", env)
 
     // IAM
 
@@ -129,6 +152,8 @@ export class EasyPlannerBackendInfrastructureStack extends Stack {
         allowMethods: Cors.ALL_METHODS,
       },
     });
+
+    tagResource(api, "Api Gateway", env)
 
     const planModel = new Model(this, `easy_planner_api_plan_model${env}`, {
       restApi: api,

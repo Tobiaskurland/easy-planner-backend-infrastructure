@@ -45,21 +45,27 @@ def lambda_handler(event, context):
             if method == "GET":
                 pass
 
-        return {
-            "body": json.dumps(response, default=decimal_default),
-            "statusCode": status,
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, PATCH, DELETE",
-                "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent",
-            },
-        }
+        return to_api_response(response, status)
 
     except Exception as e:
-        logging.error(f"Unkown error occoured - {e}")
+        logging.error(f"[ERROR] - An unkown error occoured - {e}")
         logging.error(traceback.print_exc())
 
 
+@staticmethod
+def to_api_response(response, status):
+    return {
+        "body": json.dumps(response, default=decimal_default),
+        "statusCode": status,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, PATCH, DELETE",
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent",
+        },
+    }
+
+
+@staticmethod
 def decimal_default(obj):
     if isinstance(obj, decimal.Decimal):
         return float(obj)
