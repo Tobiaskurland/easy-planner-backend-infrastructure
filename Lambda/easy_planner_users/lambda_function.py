@@ -52,7 +52,6 @@ def lambda_handler(event, context):
         logging.error(traceback.print_exc())
 
 
-@staticmethod
 def to_api_response(response, status):
     return {
         "body": json.dumps(response, default=decimal_default),
@@ -65,7 +64,6 @@ def to_api_response(response, status):
     }
 
 
-@staticmethod
 def decimal_default(obj):
     if isinstance(obj, decimal.Decimal):
         return float(obj)

@@ -1,5 +1,6 @@
 import boto3
 from boto3.dynamodb.conditions import Key
+from user_item import UserItem
 
 
 class DynamoService:
@@ -10,7 +11,7 @@ class DynamoService:
         response = self.table.get_item(Key={"PK": f"Person#{id}", "SK": "INFO"})
         if "Item" not in response:
             return "No Content", 204
-        return response["Item"], 200
+        return UserItem.from_dynamo_item(response["Item"]), 200
 
     def getUserByEmail(self, email):
         key_expression = Key("GSI1_PK").eq(email) & Key("GSI1_SK").eq("INFO")

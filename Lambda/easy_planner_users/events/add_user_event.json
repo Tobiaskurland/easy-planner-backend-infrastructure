@@ -124,6 +124,6 @@
        "domainName":"s8g7fyn8ai.execute-api.eu-west-1.amazonaws.com",
        "apiId":"s8g7fyn8ai"
     },
-    "body":"{\n    \"FirstName\": \"Rebekka\",\n    \"FamilyName\": \"Kurland\",\n    \"Email\": \"Torebibeaskka@hotmail.com\",\n    \"DateOfBirth\": \"10-10-1993\",\n    \"Password\": \"12\"\n}",
+    "body":"{\n    \"FirstName\": \"Rebekka\",\n    \"FamilyName\": \"Kurland\",\n    \"Email\": \"Torebibeaskka@hotmail.com\",\n    \"DateOfBirth\": \"10-10-1993\",\n    \"Password\": \"HejMedDig123!\"\n}",
     "isBase64Encoded":false
  }

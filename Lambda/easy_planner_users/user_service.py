@@ -7,24 +7,7 @@ import datetime
 from boto3.dynamodb.conditions import Key
 from dynamo_service import DynamoService
 from cognito_service import CognitoService
-
-
-class User:
-    def __init__(self, Id, body):
-        self.PK = f"Person#{Id}"
-        self.SK = "iNFO"
-        self.Id = Id
-        self.Name = body["FirstName"]
-        self.Family_name = body["FamilyName"]
-        self.Email = body["Email"]
-        self.Phone_number = None if "PhoneNumber" not in body else body["PhoneNumber"]
-        self.DateOfBirth = body["DateOfBirth"]
-        self.picture = (
-            None if "ProfilePicture" not in body else body["ProfilePicture"],
-        )
-        self.GSI1_PK = body["Email"]
-        self.GSI1_SK = "INFO"
-        self.Verified = False
+from user_item import UserItem
 
 
 class UserService:
@@ -39,7 +22,8 @@ class UserService:
 
     def getUserById(self, user_id):
 
-        return self.ds.getUserById(id)
+        user, status = self.ds.getUserById(user_id)
+        return user.__dict__, status
 
     def addUser(self):
 
@@ -47,10 +31,13 @@ class UserService:
         ## ADD THE USER TO COGNITO
         cognito_response, status = self.add_user_to_cognito(body)
 
+        ## IF THE USER COULD NOT BE CREATED IN COGNITO
+        ## WE STOP AND RETURN THE STATUS
         if status != 200:
             return cognito_response, status
 
-        user = User(cognito_response, body)
+        ## CREATES THE USER IN DYNAMO
+        user = UserItem.from_attribute_body(body, cognito_response)
 
         return self.ds.add_user(user.__dict__)
 
@@ -72,7 +59,7 @@ class UserService:
 
         except self.cognito.exceptions.UsernameExistsException:
             self.logger.warn(f'[WARNING] - Username {body["Email"]} already exists')
-            return {"message": "Username already registered"}, 409
+            return {"message": "Email already registered"}, 409
         except self.cognito.exceptions.InvalidPasswordException:
             self.logger.warn(
                 f"[WARNING] - Password does not meet the minimum requirements"
